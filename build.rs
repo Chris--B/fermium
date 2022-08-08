@@ -63,7 +63,7 @@ fn main() {
     let mut cm = cmake::Config::new(manifest_dir.join("SDL2-2.0.22"));
     cm.static_crt(true);
     cm.target(&env::var("TARGET").expect("Couldn't read `TARGET`"));
-    cm.define("SDL_SHARED", "ON");
+    cm.define("SDL_SHARED", "OFF");
     cm.define("SDL_STATIC", "ON");
     cm.define("HIDAPI", "ON");
 
@@ -82,6 +82,25 @@ fn main() {
         }
         arch => {
           println!("Unrecognized architecture for Apple platform \"{}\", not setting CMAKE_OSX_ARCHITECTURES", arch);
+        }
+      }
+
+      // When building against the iOS SDK, we need to tell CMake as much
+      if target_os == "ios" {
+        cm.define("CMAKE_SYSTEM_NAME", "iOS");
+        match target_arch.as_str() {
+          "aarch64" => {
+            // All shipping iPhones are a 64-bit arm target
+            cm.define("CMAKE_OSX_SYSROOT", "iphoneos");
+          }
+          "x86_64" => {
+            // The iPhone Simulator is an x86_64 target (TODO: Even on M1 macs?)
+            cm.define("CMAKE_OSX_SYSROOT", "iphonesimulator");
+          }
+          _ => {
+            eprintln!("Compiling for iOS, but didn't recognize the system. \"{}\" was not \"aarch64\" or \"x86_64\"",
+            target);
+          }
         }
       }
     }
